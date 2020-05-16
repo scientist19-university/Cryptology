@@ -1,6 +1,5 @@
 package lab2;
 
-import java.util.*;
 
 public class IDEA {
 	
@@ -20,7 +19,7 @@ public class IDEA {
 		String binInput = toBinary(input);
 		for (int i = 0; i < binInput.length() / 64; i++){
 			String binBlock = binInput.substring(i*64,(i+1)*64);
-			String encryptedBlock = encryptBlock(binBlock, keys);
+			String encryptedBlock = encryptBlockToString(binBlock, keys);
 			
 			res += encryptedBlock;
 		}
@@ -38,7 +37,7 @@ public class IDEA {
 		String binInput = toBinary(input);
 		for (int i = 0; i < binInput.length() / 64; i++){
 			String binBlock = binInput.substring(i*64,(i+1)*64);
-			String decryptedBlock = encryptBlock(binBlock, keys);
+			String decryptedBlock = encryptBlockToString(binBlock, keys);
 			
 			res += decryptedBlock;
 		}
@@ -63,9 +62,6 @@ public class IDEA {
 	
 	protected static int[] convertToNumbers(String bin_input, int size_in_bits){
 		
-//		while (bin_input.length() % size_in_bits != 0)
-//			bin_input += '0';
-		
 		int n = bin_input.length() / size_in_bits;
  		int[] res = new int[n];
 		for (int i = 0; i < n; i++){
@@ -80,29 +76,22 @@ public class IDEA {
 		return input.substring(d) + input.substring(0, d);
 	}
 	
-	protected static String encryptBlock(String binBlock, int[][] keys){
-		int[] subblocks = convertToNumbers(binBlock, 16);
-		
-		for (int i = 0; i < 8; i++){
-			subblocks = goRound(subblocks, keys[i]);
-		}
-		
-		subblocks = outputConversion(subblocks, keys[8]);
-		
-		String res = "";
-		for (int i = 0; i < 4; i++){
-			
-			
-			String bin = Integer.toBinaryString(subblocks[i]);
-			while (bin.length() < 16)
-				bin = '0' + bin;
-			
-			int[] numbers256 = convertToNumbers(bin, 8);
-			res += (char)numbers256[0];
-			res += (char)numbers256[1];
-		}
+	protected static String encryptBlockToString(String binBlock, int[][] keys){
+		int[] blocks = encryptBlockToNumbers(binBlock, keys);
+		String res = convertBlocksToString(blocks);
 		
 		return res;
+	}
+	
+	protected static int[] encryptBlockToNumbers(String binBlock, int[][] keys){
+		
+		int[] subblocks = convertToNumbers(binBlock, 16);
+		
+		for (int i = 0; i < 8; i++)
+			subblocks = goRound(subblocks, keys[i]);
+		
+		subblocks = outputConversion(subblocks, keys[8]);
+		return subblocks;
 	}
 	
 	protected static int[] goRound(int[] blocks, int[] keys){
@@ -127,22 +116,35 @@ public class IDEA {
 		int res[] = new int[4];
 		
 		res[0] = modMult(blocks[0], keys[0]);
-		res[1] = modAdd(blocks[1], keys[1]);
-		res[2] = modAdd(blocks[2], keys[2]);
-		res[2] = modMult(blocks[3], keys[3]);
+		res[1] = modAdd(blocks[2], keys[1]);
+		res[2] = modAdd(blocks[1], keys[2]);
+		res[3] = modMult(blocks[3], keys[3]);
 		
 		return res;
 	}
 	
 	protected static int modMult(int a, int b){
-		return a*b % MOD_MULT;
+	
+		if (a == 0)
+			a = MOD_ADD;
+		if (b == 0)
+			b = MOD_ADD;		
+		
+		long res = a;
+		res *= b;
+		res %= MOD_MULT;
+		
+		if (res == MOD_ADD)
+			res = 0;
+		
+		return (int)res;
 	}
 	
 	protected static int modAdd(int a, int b){
 		return (a+b) % MOD_ADD;
 	}
 	
-	protected static int[] gcd (int a, int b) {
+	protected static int[] gcd(int a, int b) {
 		if (a == 0) {
 			int res[] = new int[3];
 			res[0] = b;
@@ -215,6 +217,21 @@ public class IDEA {
 		res[0][2] = addInversion(keyTable[8][2]);
 		res[8][1] = addInversion(keyTable[0][1]);
 		res[8][2] = addInversion(keyTable[0][2]);
+		
+		return res;
+	}
+	
+	protected static String convertBlocksToString(int[] blocks){
+		String res = "";
+		for (int i = 0; i < 4; i++){
+			String bin = Integer.toBinaryString(blocks[i]);
+			while (bin.length() < 16)
+				bin = '0' + bin;
+			
+			int[] numbers256 = convertToNumbers(bin, 8);
+			res += (char)numbers256[0];
+			res += (char)numbers256[1];
+		}
 		
 		return res;
 	}
