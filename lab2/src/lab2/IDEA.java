@@ -4,26 +4,14 @@ import java.util.*;
 
 public class IDEA {
 	
-	static final private int MOD = 65537;
+	static final private int MOD_MULT = 65537;	// 2^16 + 1
+	static final private int MOD_ADD = 65536;	// 2^16
 	
-	public String encrypt(String input, String key) throws Exception{
+	public static String encrypt(String input, String key) throws Exception{
 		if (key.length() != 16)
 			throw new Exception("The algorithm requires 128-bit key");
 		
-		String binKey = toBinary(key);
-		int[][] keys = new int[9][6];
-		
-		int n = 0;
-		for (int i = 0; i < 7; i++){
-			int raw[] = convertToNumbers(binKey, 16);
-			for (int j = 0; j < 8; j++){
-				keys[n/6][n%6] = raw[j];
-				n++;
-				
-				if (n == 52) break;
-			}	
-			binKey = leftCycledShift(binKey, 25);
-		}
+		int[][] keys = getKeyTable(key);
 		
 		while (input.length() % 8 != 0)
 			input += '#';
@@ -40,7 +28,25 @@ public class IDEA {
 		return res;
 	}
 	
-	private String toBinary(String input) throws Exception{
+	public static String decrypt(String input, String key) throws Exception{
+		if (key.length() != 16)
+			throw new Exception("The algorithm requires 128-bit key");
+		
+		int[][] keys = getKeyTableForDecryption(getKeyTable(key));
+		
+		String res = "";
+		String binInput = toBinary(input);
+		for (int i = 0; i < binInput.length() / 64; i++){
+			String binBlock = binInput.substring(i*64,(i+1)*64);
+			String decryptedBlock = encryptBlock(binBlock, keys);
+			
+			res += decryptedBlock;
+		}
+		
+		return res;		
+	}
+	
+	protected static String toBinary(String input) throws Exception{
 		String res = "";
 		for (int i = 0; i < input.length(); i++){
 			String tmp = Integer.toBinaryString(input.charAt(i));
@@ -55,7 +61,7 @@ public class IDEA {
 		return res;
 	}
 	
-	private int[] convertToNumbers(String bin_input, int size_in_bits){
+	protected static int[] convertToNumbers(String bin_input, int size_in_bits){
 		
 //		while (bin_input.length() % size_in_bits != 0)
 //			bin_input += '0';
@@ -70,11 +76,11 @@ public class IDEA {
 		return res;
 	}
 	
-	private String leftCycledShift(String input, int d){
+	protected static String leftCycledShift(String input, int d){
 		return input.substring(d) + input.substring(0, d);
 	}
 	
-	private String encryptBlock(String binBlock, int[][] keys){
+	protected static String encryptBlock(String binBlock, int[][] keys){
 		int[] subblocks = convertToNumbers(binBlock, 16);
 		
 		for (int i = 0; i < 8; i++){
@@ -99,7 +105,7 @@ public class IDEA {
 		return res;
 	}
 	
-	private int[] goRound(int[] blocks, int[] keys){
+	protected static int[] goRound(int[] blocks, int[] keys){
 		
 		int a = modMult(blocks[0], keys[0]);
 		int b = modAdd(blocks[1], keys[1]);
@@ -117,7 +123,7 @@ public class IDEA {
 		return res;
 	}
 	
-	private int[] outputConversion(int[] blocks, int[] keys){
+	protected static int[] outputConversion(int[] blocks, int[] keys){
 		int res[] = new int[4];
 		
 		res[0] = modMult(blocks[0], keys[0]);
@@ -128,11 +134,88 @@ public class IDEA {
 		return res;
 	}
 	
-	private int modMult(int a, int b){
-		return a*b % MOD;
+	protected static int modMult(int a, int b){
+		return a*b % MOD_MULT;
 	}
 	
-	private int modAdd(int a, int b){
-		return (a+b) % MOD;
+	protected static int modAdd(int a, int b){
+		return (a+b) % MOD_ADD;
+	}
+	
+	protected static int[] gcd (int a, int b) {
+		if (a == 0) {
+			int res[] = new int[3];
+			res[0] = b;
+			res[1] = 0;
+			res[2] = 1;
+
+			return res;
+		}
+
+		int d[] = gcd (b%a, a);
+		
+		int res[] = new int[3];
+		res[0] = d[0];
+		res[1] = d[2] - (b / a) * d[1];
+		res[2] = d[1];
+		
+		return res;
+	}
+	
+	protected static int multInversion(int a){
+		int[] gcdRes = gcd(MOD_MULT, a);
+		return (gcdRes[2] + MOD_MULT) % MOD_MULT;
+	}
+	
+	protected static int addInversion(int a){
+		return MOD_ADD - a;
+	}
+	
+	protected static int[][] getKeyTable(String key) throws Exception{
+		String binKey = toBinary(key);
+		int[][] res = new int[9][6];
+		
+		int n = 0;
+		for (int i = 0; i < 7; i++){
+			int raw[] = convertToNumbers(binKey, 16);
+			for (int j = 0; j < 8; j++){
+				res[n/6][n%6] = raw[j];
+				n++;
+				
+				if (n == 52) break;
+			}	
+			binKey = leftCycledShift(binKey, 25);
+		}
+		
+		return res;
+	}
+	
+	protected static int[][] getKeyTableForDecryption(int[][] keyTable){
+		
+		int res[][] = new int[9][6];
+		
+		// 0 and 3 columns
+		for (int i = 0; i < 9; i++){
+			res[i][0] = multInversion(keyTable[8 - i][0]);
+			res[i][3] = multInversion(keyTable[8 - i][3]);
+		}
+		
+		// 4 and 5 columns
+		for (int i = 0; i < 8; i++){
+			res[i][4] = keyTable[7 - i][4];
+			res[i][5] = keyTable[7 - i][5];
+		}		
+		
+		// 1 and 2 columns
+		for (int i = 1; i < 8; i++){
+			res[i][1] = addInversion(keyTable[8 - i][2]);
+			res[i][2] = addInversion(keyTable[8 - i][1]);
+		}
+		res[0][1] = addInversion(keyTable[8][1]);
+		res[0][2] = addInversion(keyTable[8][2]);
+		res[8][1] = addInversion(keyTable[0][1]);
+		res[8][2] = addInversion(keyTable[0][2]);
+		
+		return res;
 	}
 }

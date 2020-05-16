@@ -19,6 +19,14 @@ public class Controller {
 		}
 		System.out.println(encr);
 
+		String decr = "";		
+		try{
+			decr = alg.decrypt(encr, key);
+		}
+		catch(Exception ex){
+			System.out.println(ex);
+		}
+		System.out.println(decr);		
 	}
 
 }
