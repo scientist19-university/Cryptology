@@ -60,13 +60,13 @@ public class IDEA {
 		return res;
 	}
 	
-	protected static int[] convertToNumbers(String bin_input, int size_in_bits){
+	protected static int[] convertToNumbers(String binInput, int sizeInBits){
 		
-		int n = bin_input.length() / size_in_bits;
+		int n = binInput.length() / sizeInBits;
  		int[] res = new int[n];
 		for (int i = 0; i < n; i++){
-			String bin_key = bin_input.substring(i*size_in_bits, (i+1)*size_in_bits);
-			res[i] = Integer.parseInt(bin_key, 2);
+			String binKey = binInput.substring(i*sizeInBits, (i+1)*sizeInBits);
+			res[i] = Integer.parseInt(binKey, 2);
 		}
 		
 		return res;
