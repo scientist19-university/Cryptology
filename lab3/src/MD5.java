@@ -36,25 +36,24 @@ public class MD5
 
 	private byte[] digest = new byte[16];
 
-	public String getMD5ofStr(String inbuf) {
-		md5Init();
-		md5Update(inbuf.getBytes(), inbuf.length());
-		md5Final();
+	public String getHash(String inbuf) {
+		init();
+		addToBuffer(inbuf.getBytes(), inbuf.length());
+		addSizeToBuffer();
+		
 		digestHexStr = "";
 		for (int i = 0; i < 16; i++) {
 			digestHexStr += byteHEX(digest[i]);
 		}
+		
 		return digestHexStr;
-
 	}
 
 	public MD5() {
-		md5Init();
-
-		return;
+		init();
 	}
 
-	private void md5Init() {
+	private void init() {
 		count[0] = 0L;
 		count[1] = 0L;
 
@@ -62,8 +61,6 @@ public class MD5
 		state[1] = 0xefcdab89L;
 		state[2] = 0x98badcfeL;
 		state[3] = 0x10325476L;
-
-		return;
 	}
 
 	private long F(long x, long y, long z) {
@@ -112,7 +109,7 @@ public class MD5
 		return a;
 	}
 
-	private void md5Update(byte[] inbuf, int inputLen) {
+	private void addToBuffer(byte[] inbuf, int inputLen) {
 
 		int i, index, partLen;
 		index = (int) (count[0] >>> 3) & 0x3F;
@@ -123,13 +120,13 @@ public class MD5
 		partLen = 64 - index;
 
 		if (inputLen >= partLen) {
-			md5Memcpy(buffer, inbuf, index, 0, partLen);
-			md5Transform(buffer);
+			memcpy(buffer, inbuf, index, 0, partLen);
+			transform(buffer);
 
 			for (i = partLen; i + 63 < inputLen; i += 64) {
 
-				md5Memcpy(buffer, inbuf, 0, i, 64);
-				md5Transform(buffer);
+				memcpy(buffer, inbuf, 0, i, 64);
+				transform(buffer);
 			}
 			index = 0;
 
@@ -137,38 +134,40 @@ public class MD5
 
 			i = 0;
 
-		md5Memcpy(buffer, inbuf, index, i, inputLen - i);
+		memcpy(buffer, inbuf, index, i, inputLen - i);
 
 	}
 
-	private void md5Final() {
+	private void addSizeToBuffer() {
 		byte[] bits = new byte[8];
 		int index, padLen;
 
-		Encode(bits, count, 8);
+		encode(bits, count, 8);
 
 		index = (int) (count[0] >>> 3) & 0x3f;
 		padLen = (index < 56) ? (56 - index) : (120 - index);
-		md5Update(PADDING, padLen);
+		
+		addToBuffer(PADDING, padLen);
+		addToBuffer(bits, 8);
 
-		md5Update(bits, 8);
-
-		Encode(digest, state, 16);
-
+		encode(digest, state, 16);
 	}
 
-	private void md5Memcpy(byte[] output, byte[] input, int outpos, int inpos, int len) {
+	private void memcpy(byte[] output, byte[] input, int outpos, int inpos, int len) {
 		int i;
 
 		for (i = 0; i < len; i++)
 			output[outpos + i] = input[inpos + i];
 	}
 
-	private void md5Transform(byte block[]) {
-		long a = state[0], b = state[1], c = state[2], d = state[3];
+	private void transform(byte block[]) {
+		long a = state[0], 
+			 b = state[1], 
+			 c = state[2], 
+			 d = state[3];
+		
 		long[] x = new long[16];
-
-		Decode(x, block, 64);
+		decode(x, block, 64);
 
 		/* Round 1 */
 		a = FF(a, b, c, d, x[0], S11, 0xd76aa478L); /* 1 */
@@ -246,10 +245,9 @@ public class MD5
 		state[1] += b;
 		state[2] += c;
 		state[3] += d;
-
 	}
 
-	private void Encode(byte[] output, long[] input, int len) {
+	private void encode(byte[] output, long[] input, int len) {
 		int i, j;
 
 		for (i = 0, j = 0; j < len; i++, j += 4) {
@@ -260,14 +258,15 @@ public class MD5
 		}
 	}
 
-	private void Decode(long[] output, byte[] input, int len) {
+	private void decode(long[] output, byte[] input, int len) {
 		int i, j;
 
 		for (i = 0, j = 0; j < len; i++, j += 4)
-			output[i] = b2iu(input[j]) | (b2iu(input[j + 1]) << 8) | (b2iu(input[j + 2]) << 16)
-					| (b2iu(input[j + 3]) << 24);
+			output[i] = b2iu(input[j]) | 
+					   (b2iu(input[j + 1]) << 8) | 
+					   (b2iu(input[j + 2]) << 16)| 
+					   (b2iu(input[j + 3]) << 24);
 
-		return;
 	}
 
 	public static long b2iu(byte b) {
@@ -275,10 +274,11 @@ public class MD5
 	}
 
 	public static String byteHEX(byte ib) {
-		char[] Digit = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+		char[] digit = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 		char[] ob = new char[2];
-		ob[0] = Digit[(ib >>> 4) & 0X0F];
-		ob[1] = Digit[ib & 0X0F];
+		
+		ob[0] = digit[(ib >>> 4) & 0X0F];
+		ob[1] = digit[ib & 0X0F];
 		String s = new String(ob);
 		return s;
 	}
